@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EGGER Forest Tycoon</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; }
+    body { font-family: 'Arial', sans-serif; background: linear-gradient(135deg, #2d5016, #4a7c1a); color: white; overflow: hidden; height: 100vh; }
+    .game-container { height: 100vh; display: flex; flex-direction: column; }
+    .header { background: rgba(0,0,0,0.8); padding: 10px; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #8bc34a; }
+    .logo { font-weight: bold; color: #ff6b35; font-size: 18px; }
+    .resources { display: flex; gap: 15px; font-size: 14px; }
+    .resource { background: rgba(255,255,255,0.1); padding: 5px 10px; border-radius: 15px; display: flex; align-items: center; gap: 5px; }
+    .main-content { flex: 1; position: relative; overflow: hidden; }
+    .tab-buttons { display: flex; background: rgba(0,0,0,0.7); border-bottom: 2px solid #8bc34a; }
+    .tab-btn { flex: 1; padding: 12px; background: transparent; border: none; color: white; cursor: pointer; transition: all 0.3s; font-size: 14px; }
+    .tab-btn.active { background: #8bc34a; color: black; }
+    .tab-content { display: none; height: calc(100vh - 130px); overflow-y: auto; padding: 15px; }
+    .tab-content.active { display: block; }
+
+    /* FORÊT */
+    .forest-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px; }
+    .tree-slot { aspect-ratio: 1; background: rgba(0,0,0,0.3); border: 2px solid #4a7c1a; border-radius: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; position: relative; transition: all 0.3s; }
+    .tree-slot:hover { border-color: #8bc34a; background: rgba(139, 195, 74, 0.1); }
+    .tree { font-size: 30px; margin-bottom: 5px; }
+    .tree-info { font-size: 10px; text-align: center; }
+    .progress-bar { position: absolute; bottom: 5px; left: 5px; right: 5px; height: 4px; background: rgba(0,0,0,0.5); border-radius: 2px; overflow: hidden; }
+    .progress-fill { height: 100%; background: #8bc34a; width: 0%; transition: width 0.3s; }
+    .forest-actions { display: flex; gap: 10px; margin-bottom: 20px; }
+    .action-btn { flex: 1; padding: 12px; background: #ff6b35; border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer; transition: all 0.3s; }
+    .action-btn:hover { background: #e55a2b; transform: translateY(-2px); }
+    .action-btn:disabled { background: #666; cursor: not-allowed; transform: none; }
+
+    /* ÉQUIPEMENTS */
+    .equipment-categories { display: grid; gap: 15px; }
+    .equipment-category { background: rgba(0,0,0,0.4); border-radius: 10px; padding: 15px; border: 2px solid #4a7c1a; }
+    .category-title { font-size: 18px; color: #ff6b35; margin-bottom: 10px; display: flex; align-items: center; gap: 10px; }
+    .equipment-list { display: grid; gap: 10px; }
+    .equipment-item { background: rgba(255,255,255,0.1); border-radius: 8px; padding: 10px; display: flex; justify-content: space-between; align-items: center; border-left: 4px solid #8bc34a; }
+    .equipment-item.locked { opacity: 0.5; border-left-color: #666; }
+    .equipment-info { flex: 1; }
+    .equipment-name { font-weight: bold; margin-bottom: 2px; }
+    .equipment-desc { font-size: 12px; color: #ccc; }
+    .buy-btn { padding: 8px 15px; background: #8bc34a; border: none; border-radius: 5px; color: black; font-weight: bold; cursor: pointer; transition: all 0.3s; }
+    .buy-btn:hover { background: #7cb342; }
+    .buy-btn:disabled { background: #666; color: #999; cursor: not-allowed; }
+
+    /* PRODUCTION */
+    .production-overview { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 20px; }
+    .panel-type { background: rgba(0,0,0,0.4); border-radius: 10px; padding: 15px; border: 2px solid #4a7c1a; text-align: center; }
+    .panel-name { font-weight: bold; color: #ff6b35; margin-bottom: 10px; }
+    .production-machines { background: rgba(0,0,0,0.4); border-radius: 10px; padding: 15px; border: 2px solid #4a7c1a; margin-bottom: 20px; }
+    .machine { display: flex; justify-content: space-between; align-items: center; padding: 10px; background: rgba(255,255,255,0.1); border-radius: 8px; margin-bottom: 10px; }
+    .machine.active { border-left: 4px solid #8bc34a; }
+    .production-queue { background: rgba(0,0,0,0.4); border-radius: 10px; padding: 15px; border: 2px solid #4a7c1a; }
+    .queue-item { background: rgba(255,255,255,0.1); border-radius: 8px; padding: 10px; margin-bottom: 10px; position: relative; }
+
+    /* SALARIÉS */
+    .employees-grid { display: grid; gap: 15px; margin-top: 20px; }
+    .employee-card { background: rgba(0,0,0,0.4); border-radius: 10px; padding: 15px; border: 2px solid #4a7c1a; display: flex; justify-content: space-between; align-items: center; }
+
+    .notification { position: fixed; top: 20px; right: 20px; background: #8bc34a; color: black; padding: 10px 20px; border-radius: 5px; z-index: 1000; font-weight: bold; animation: slideIn 0.3s ease-out; }
+    @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+
+    .particle { position: absolute; pointer-events: none; animation: float 2s ease-out forwards; z-index: 999; }
+    @keyframes float { 0% { opacity: 1; transform: translateY(0) scale(1);} 100% { opacity: 0; transform: translateY(-50px) scale(1.2);} }
+
+    .eco-score { position: fixed; bottom: 20px; left: 20px; background: rgba(0,0,0,0.8); padding: 10px; border-radius: 10px; border: 2px solid #4caf50; font-size: 14px; }
+
+    @media (max-width: 480px) {
+      .forest-grid { grid-template-columns: repeat(3, 1fr); }
+      .production-overview { grid-template-columns: 1fr; }
+      .resources { gap: 8px; }
+      .resource { padding: 3px 6px; font-size: 12px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="game-container">
+    <div class="header">
+      <div class="logo">🌲 EGGER Forest Tycoon</div>
+      <div class="resources">
+        <div class="resource">💰 <span id="money">1000</span>€</div>
+        <div class="resource">🪵 <span id="wood">0</span></div>
+        <div class="resource">📦 <span id="panels">0</span></div>
+        <div class="resource">👥 <span id="employees">0</span></div>
+      </div>
+    </div>
+
+    <div class="tab-buttons">
+      <button class="tab-btn active" onclick="game.switchTab('forest', this)">🌲 Forêt</button>
+      <button class="tab-btn" onclick="game.switchTab('equipment', this)">⚒️ Équipements</button>
+      <button class="tab-btn" onclick="game.switchTab('production', this)">🏭 Production</button>
+    </div>
+
+    <div class="main-content">
+      <!-- ONGLET FORÊT -->
+      <div id="forest" class="tab-content active">
+        <div class="forest-actions">
+          <button class="action-btn" id="btnPlant" onclick="game.plantTree()">Planter Arbre (50€)</button>
+          <button class="action-btn" onclick="game.harvestAll()">Récolter Tous</button>
+          <button class="action-btn" id="btnHire" onclick="game.hireEmployee()">Embaucher (200€)</button>
+        </div>
+        <div class="forest-grid" id="forestGrid"></div>
+        <div class="employees-grid" id="employeesGrid"></div>
+      </div>
+
+      <!-- ONGLET ÉQUIPEMENTS -->
+      <div id="equipment" class="tab-content">
+        <div class="equipment-categories" id="equipmentCategories"></div>
+      </div>
+
+      <!-- ONGLET PRODUCTION -->
+      <div id="production" class="tab-content">
+        <div class="production-overview">
+          <div class="panel-type">
+            <div class="panel-name">OSB</div>
+            <div>Prix: 150€</div>
+            <div>Coût: 80€</div>
+            <button class="action-btn" id="btnOSB" onclick="game.producePanel('osb')">Produire</button>
+          </div>
+          <div class="panel-type">
+            <div class="panel-name">MDF</div>
+            <div>Prix: 180€</div>
+            <div>Coût: 100€</div>
+            <button class="action-btn" id="btnMDF" onclick="game.producePanel('mdf')">Produire</button>
+          </div>
+          <div class="panel-type">
+            <div class="panel-name">Aggloméré</div>
+            <div>Prix: 120€</div>
+            <div>Coût: 60€</div>
+            <button class="action-btn" id="btnAGG" onclick="game.producePanel('agglomere')">Produire</button>
+          </div>
+        </div>
+
+        <div class="production-machines">
+          <h3 style="color: #ff6b35; margin-bottom: 15px;">🏭 Machines</h3>
+          <div class="machine" id="grinder">
+            <span>Broyeur</span>
+            <button class="action-btn" onclick="game.toggleMachine('grinder')">Activer</button>
+          </div>
+          <div class="machine" id="press">
+            <span>Presse</span>
+            <button class="action-btn" onclick="game.toggleMachine('press')">Activer</button>
+          </div>
+          <div class="machine" id="finish">
+            <span>Finition</span>
+            <button class="action-btn" onclick="game.toggleMachine('finish')">Activer</button>
+          </div>
+        </div>
+
+        <div class="production-queue">
+          <h3 style="color: #ff6b35; margin-bottom: 15px;">📋 File de Production</h3>
+          <div id="productionQueue">
+            <div style="text-align: center; color: #999;">Aucune production en cours</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="eco-score">🌱 Score Écologique: <span id="ecoScore">100</span>%</div>
+
+  <script>
+    class ForestTycoonGame {
+      constructor() {
+        // État du jeu
+        this.gameState = {
+          money: 1000,
+          wood: 0,
+          panels: 0,
+          employees: 0,
+          ecoScore: 100,
+          trees: [],
+          equipment: { axe: 'basic', grinder: 'manual', press: 'basic', logistics: [] },
+          machines: { grinder: false, press: false, finish: false },
+          productionQueue: [],
+          employeeList: []
+        };
+
+        this.lastPayrollTime = Date.now(); // ✅ suivi fiable des salaires
+
+        // Configuration des équipements
+        this.equipmentConfig = {
+          'Haches': {
+            'basic': { name: 'Hache de base', price: 0, owned: true, efficiency: 1, desc: 'Récolte manuelle' },
+            'steel': { name: 'Hache en acier', price: 500, owned: false, efficiency: 1.5, desc: 'Récolte 50% plus rapide' },
+            'titanium': { name: 'Hache en titanium', price: 1500, owned: false, efficiency: 2, desc: 'Récolte 100% plus rapide' },
+            'chainsaw': { name: 'Tronçonneuse', price: 5000, owned: false, efficiency: 3, desc: 'Récolte ultra-rapide' }
+          },
+          'Broyeurs': {
+            'manual': { name: 'Broyeur manuel', price: 0, owned: true, efficiency: 1, desc: 'Broyage de base' },
+            'electric': { name: 'Broyeur électrique', price: 2000, owned: false, efficiency: 1.3, desc: '+30% efficacité' },
+            'industrial': { name: 'Broyeur industriel', price: 8000, owned: false, efficiency: 2, desc: '+100% efficacité' }
+          },
+          'Presses': {
+            'basic': { name: 'Presse de base', price: 0, owned: true, efficiency: 1, desc: 'Production normale' },
+            'hydraulic': { name: 'Presse hydraulique', price: 3000, owned: false, efficiency: 1.5, desc: '+50% vitesse' },
+            'cnc': { name: 'Presse CNC', price: 12000, owned: false, efficiency: 2.5, desc: '+150% vitesse' }
+          },
+          'Logistique': {
+            'truck': { name: 'Camion', price: 4000, owned: false, efficiency: 1.2, desc: '+20% prix de vente' },
+            'crane': { name: 'Grue', price: 6000, owned: false, efficiency: 1.1, desc: 'Aide à la plantation' }
+          }
+        };
+
+        this.init();
+      }
+
+      // Utilitaires d'affichage
+      format(n) { return Math.floor(n).toLocaleString('fr-FR'); }
+
+      // Initialisation du jeu
+      init() {
+        this.generateForest();
+        this.generateEquipment();
+        this.updateUI();
+        this.startGameLoop();
+      }
+
+      // Génération de la forêt (12 slots)
+      generateForest() {
+        const forestGrid = document.getElementById('forestGrid');
+        forestGrid.innerHTML = '';
+        for (let i = 0; i < 12; i++) {
+          const slot = document.createElement('div');
+          slot.className = 'tree-slot';
+          slot.onclick = () => this.interactWithTree(i);
+          slot.innerHTML = `
+            <div class="tree">🌱</div>
+            <div class="tree-info">Vide</div>
+            <div class="progress-bar"><div class="progress-fill"></div></div>
+          `;
+          forestGrid.appendChild(slot);
+          this.gameState.trees[i] = { planted: false, growth: 0, type: 'empty' };
+        }
+      }
+
+      // Génération des équipements
+      generateEquipment() {
+        const container = document.getElementById('equipmentCategories');
+        container.innerHTML = '';
+        const categoryIcon = { 'Haches': '🪓', 'Broyeurs': '⚙️', 'Presses': '🗜️', 'Logistique': '🚛' };
+
+        Object.keys(this.equipmentConfig).forEach(category => {
+          const categoryDiv = document.createElement('div');
+          categoryDiv.className = 'equipment-category';
+          categoryDiv.innerHTML = `
+            <div class="category-title">${categoryIcon[category]} ${category}</div>
+            <div class="equipment-list" id="${category}List"></div>
+          `;
+          container.appendChild(categoryDiv);
+
+          const equipmentList = document.getElementById(`${category}List`);
+          Object.keys(this.equipmentConfig[category]).forEach(key => {
+            const equipment = this.equipmentConfig[category][key];
+            const equipmentDiv = document.createElement('div');
+            equipmentDiv.className = `equipment-item ${equipment.owned ? '' : 'locked'}`;
+            const priceLabel = equipment.owned ? 'Possédé' : this.format(equipment.price) + '€';
+            equipmentDiv.innerHTML = `
+              <div class="equipment-info">
+                <div class="equipment-name">${equipment.name}</div>
+                <div class="equipment-desc">${equipment.desc}</div>
+              </div>
+              <button class="buy-btn" ${equipment.owned ? 'disabled' : ''}
+                onclick="game.buyEquipment('${category}', '${key}')">${priceLabel}</button>
+            `;
+            equipmentList.appendChild(equipmentDiv);
+          });
+        });
+      }
+
+      // Changer d'onglet (fix: plus d'utilisation d'event implicite)
+      switchTab(tabName, btnEl) {
+        document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+        const target = document.getElementById(tabName);
+        if (target) target.classList.add('active');
+        if (btnEl) btnEl.classList.add('active');
+      }
+
+      // Planter un arbre
+      plantTree() {
+        if (this.gameState.money < 50) return this.showNotification("Pas assez d'argent !", 'error');
+        const emptySlot = this.gameState.trees.findIndex(tree => !tree.planted);
+        if (emptySlot === -1) return this.showNotification('Toutes les parcelles sont occupées !', 'error');
+        this.gameState.money -= 50;
+        this.gameState.trees[emptySlot] = { planted: true, growth: 0, type: 'growing' };
+        this.gameState.ecoScore = Math.min(100, this.gameState.ecoScore + 2);
+        this.updateTreeDisplay(emptySlot);
+        this.updateUI();
+        this.showNotification('Arbre planté ! 🌱', 'success');
+      }
+
+      // Interaction avec un arbre
+      interactWithTree(index) {
+        const tree = this.gameState.trees[index];
+        if (!tree.planted) return this.plantTree();
+        if (tree.growth >= 100) this.harvestTree(index); else this.showNotification(`Croissance: ${Math.round(tree.growth)}%`, 'info');
+      }
+
+      // Récolter un arbre
+      harvestTree(index) {
+        const tree = this.gameState.trees[index];
+        if (!tree.planted || tree.growth < 100) return;
+        const axeEfficiency = this.equipmentConfig.Haches[this.gameState.equipment.axe].efficiency;
+        const woodGained = Math.floor(10 * axeEfficiency);
+        this.gameState.wood += woodGained;
+        this.gameState.trees[index] = { planted: false, growth: 0, type: 'empty' };
+        this.gameState.ecoScore = Math.max(0, this.gameState.ecoScore - 1);
+        this.updateTreeDisplay(index);
+        this.updateUI();
+        this.showNotification(`+${woodGained} bois récoltés ! 🪵`, 'success');
+        this.createParticle(index, `+${woodGained} 🪵`);
+      }
+
+      // Récolter tous les arbres matures
+      harvestAll() {
+        let harvested = 0; let totalWood = 0;
+        this.gameState.trees.forEach((tree, index) => {
+          if (tree.planted && tree.growth >= 100) {
+            const axeEfficiency = this.equipmentConfig.Haches[this.gameState.equipment.axe].efficiency;
+            const woodGained = Math.floor(10 * axeEfficiency);
+            totalWood += woodGained; harvested++;
+            this.gameState.trees[index] = { planted: false, growth: 0, type: 'empty' };
+            this.updateTreeDisplay(index);
+          }
+        });
+        if (harvested > 0) {
+          this.gameState.wood += totalWood;
+          this.gameState.ecoScore = Math.max(0, this.gameState.ecoScore - harvested);
+          this.updateUI();
+          this.showNotification(`${harvested} arbres récoltés ! +${totalWood} bois 🪵`, 'success');
+        } else this.showNotification('Aucun arbre à récolter !', 'error');
+      }
+
+      // Embaucher un employé
+      hireEmployee() {
+        if (this.gameState.money < 200) return this.showNotification("Pas assez d'argent !", 'error');
+        this.gameState.money -= 200; this.gameState.employees++;
+        const employee = { id: Date.now(), name: `Employé #${this.gameState.employees}`,
+          efficiency: 1 + Math.random() * 0.5, salary: 50 + Math.floor(Math.random() * 30) };
+        this.gameState.employeeList.push(employee);
+        this.updateEmployeesDisplay(); this.updateUI();
+        this.showNotification('Nouvel employé embauché ! 👷', 'success');
+      }
+
+      // Licencier un employé
+      fireEmployee(employeeId) {
+        const idx = this.gameState.employeeList.findIndex(emp => emp.id === employeeId);
+        if (idx !== -1) {
+          this.gameState.employeeList.splice(idx, 1);
+          this.gameState.employees--; this.updateEmployeesDisplay(); this.updateUI();
+          this.showNotification('Employé licencié !', 'success');
+        }
+      }
+
+      // Acheter un équipement
+      buyEquipment(category, key) {
+        const equipment = this.equipmentConfig[category][key];
+        if (equipment.owned || this.gameState.money < equipment.price)
+          return this.showNotification("Impossible d'acheter cet équipement !", 'error');
+        this.gameState.money -= equipment.price; equipment.owned = true;
+        const categoryKey = category.toLowerCase();
+        if (categoryKey === 'haches') this.gameState.equipment.axe = key;
+        else if (categoryKey === 'broyeurs') this.gameState.equipment.grinder = key;
+        else if (categoryKey === 'presses') this.gameState.equipment.press = key;
+        else if (category === 'Logistique') if (!this.gameState.equipment.logistics.includes(key)) this.gameState.equipment.logistics.push(key);
+        this.generateEquipment(); this.updateUI();
+        this.showNotification(`${equipment.name} acheté ! ⚒️`, 'success');
+      }
+
+      // Produire un panneau
+      producePanel(type) {
+        const cfg = { osb: { cost: 80, price: 150, wood: 5, time: 3000 }, mdf: { cost: 100, price: 180, wood: 6, time: 4000 }, agglomere: { cost: 60, price: 120, wood: 4, time: 2000 } };
+        const panel = cfg[type]; if (!panel) return;
+        if (this.gameState.money < panel.cost) return this.showNotification("Pas assez d'argent !", 'error');
+        if (this.gameState.wood < panel.wood) return this.showNotification('Pas assez de bois !', 'error');
+        this.gameState.money -= panel.cost; this.gameState.wood -= panel.wood;
+        // Effets machines: si activées, petit bonus (facultatif mais fonctionnel)
+        let time = panel.time / this.equipmentConfig.Presses[this.gameState.equipment.press].efficiency;
+        if (this.gameState.machines.press) time *= 0.9; // +10% de vitesse si presse activée
+        if (this.gameState.machines.grinder) time *= 0.95; // +5%
+        let sellPrice = panel.price;
+        if (this.gameState.equipment.logistics.includes('truck')) sellPrice = Math.floor(sellPrice * 1.2);
+        const productionItem = { id: Date.now(), type: type.toUpperCase(), startTime: Date.now(), duration: time, sellPrice };
+        this.gameState.productionQueue.push(productionItem);
+        this.updateProductionDisplay(); this.updateUI();
+        this.showNotification(`Production de ${type.toUpperCase()} lancée ! 🏭`, 'success');
+      }
+
+      // Activer/désactiver une machine
+      toggleMachine(machineType) {
+        this.gameState.machines[machineType] = !this.gameState.machines[machineType];
+        const el = document.getElementById(machineType); const btn = el.querySelector('button');
+        if (this.gameState.machines[machineType]) { el.classList.add('active'); btn.textContent = 'Désactiver'; btn.style.background = '#f44336'; }
+        else { el.classList.remove('active'); btn.textContent = 'Activer'; btn.style.background = '#ff6b35'; }
+      }
+
+      // Mettre à jour l'affichage des arbres
+      updateTreeDisplay(index) {
+        const tree = this.gameState.trees[index];
+        const slot = document.querySelectorAll('.tree-slot')[index]; if (!slot) return;
+        const treeIcon = slot.querySelector('.tree'); const treeInfo = slot.querySelector('.tree-info'); const progressFill = slot.querySelector('.progress-fill');
+        if (tree.planted) {
+          if (tree.growth < 50) { treeIcon.textContent = '🌱'; treeInfo.textContent = 'Jeune'; }
+          else if (tree.growth < 100) { treeIcon.textContent = '🌳'; treeInfo.textContent = 'Croît'; }
+          else { treeIcon.textContent = '🌲'; treeInfo.textContent = 'Mature'; }
+          progressFill.style.width = tree.growth + '%';
+        } else { treeIcon.textContent = '🌱'; treeInfo.textContent = 'Vide'; progressFill.style.width = '0%'; }
+      }
+
+      // Mettre à jour l'affichage des employés
+      updateEmployeesDisplay() {
+        const container = document.getElementById('employeesGrid'); container.innerHTML = '';
+        this.gameState.employeeList.forEach(employee => {
+          const employeeDiv = document.createElement('div'); employeeDiv.className = 'employee-card';
+          employeeDiv.innerHTML = `
+            <div>
+              <div style="font-weight: bold;">👷 ${employee.name}</div>
+              <div style="font-size: 12px; color: #ccc;">Efficacité: ${Math.round(employee.efficiency * 100)}% | Salaire: ${this.format(employee.salary)}€/min</div>
+            </div>
+            <button class="action-btn" onclick="game.fireEmployee(${employee.id})">Licencier</button>
+          `;
+          container.appendChild(employeeDiv);
+        });
+      }
+
+      // Mettre à jour l'affichage de la production
+      updateProductionDisplay() {
+        const container = document.getElementById('productionQueue');
+        if (this.gameState.productionQueue.length === 0) { container.innerHTML = '<div style="text-align: center; color: #999;">Aucune production en cours</div>'; return; }
+        container.innerHTML = '';
+        this.gameState.productionQueue.forEach(item => {
+          const progress = Math.min(100, ((Date.now() - item.startTime) / item.duration) * 100);
+          const queueDiv = document.createElement('div'); queueDiv.className = 'queue-item';
+          queueDiv.innerHTML = `
+            <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+              <span>📦 ${item.type}</span>
+              <span>${this.format(item.sellPrice)}€</span>
+            </div>
+            <div class="progress-bar"><div class="progress-fill" style="width: ${progress}%"></div></div>
+          `;
+          container.appendChild(queueDiv);
+        });
+      }
+
+      // Mettre à jour l'interface utilisateur
+      updateUI() {
+        document.getElementById('money').textContent = this.format(this.gameState.money);
+        document.getElementById('wood').textContent = this.format(this.gameState.wood);
+        document.getElementById('panels').textContent = this.format(this.gameState.panels);
+        document.getElementById('employees').textContent = this.format(this.gameState.employees);
+        document.getElementById('ecoScore').textContent = Math.round(this.gameState.ecoScore);
+        // Désactivation contextuelle de quelques boutons
+        document.getElementById('btnPlant').disabled = this.gameState.money < 50;
+        document.getElementById('btnHire').disabled = this.gameState.money < 200;
+        document.getElementById('btnOSB').disabled = this.gameState.money < 80 || this.gameState.wood < 5;
+        document.getElementById('btnMDF').disabled = this.gameState.money < 100 || this.gameState.wood < 6;
+        document.getElementById('btnAGG').disabled = this.gameState.money < 60 || this.gameState.wood < 4;
+      }
+
+      // Afficher une notification
+      showNotification(message, type) {
+        document.querySelectorAll('.notification').forEach(n => n.remove());
+        const notification = document.createElement('div'); notification.className = 'notification'; notification.textContent = message;
+        if (type === 'error') { notification.style.background = '#f44336'; notification.style.color = 'white'; }
+        else if (type === 'info') { notification.style.background = '#2196F3'; notification.style.color = 'white'; }
+        document.body.appendChild(notification);
+        setTimeout(() => notification.remove(), 3000);
+      }
+
+      // Particule d'animation
+      createParticle(treeIndex, text) {
+        const slot = document.querySelectorAll('.tree-slot')[treeIndex]; if (!slot) return;
+        const particle = document.createElement('div'); particle.className = 'particle'; particle.textContent = text;
+        particle.style.position = 'absolute'; particle.style.left = '50%'; particle.style.top = '50%';
+        particle.style.transform = 'translate(-50%, -50%)'; particle.style.fontWeight = 'bold'; particle.style.color = '#8bc34a'; particle.style.zIndex = '999';
+        slot.style.position = 'relative'; slot.appendChild(particle); setTimeout(() => particle.remove(), 2000);
+      }
+
+      // Boucle principale du jeu
+      startGameLoop() { setInterval(() => this.gameLoop(), 1000); }
+
+      gameLoop() {
+        // Croissance des arbres
+        this.gameState.trees.forEach((tree, index) => {
+          if (tree.planted && tree.growth < 100) {
+            let growthRate = 2; // 2% par seconde
+            if (this.gameState.employees > 0) growthRate += this.gameState.employees * 0.5; // bonus employés
+            if (this.gameState.equipment.logistics.includes('crane')) growthRate *= 1.1; // bonus grue
+            tree.growth = Math.min(100, tree.growth + growthRate); this.updateTreeDisplay(index);
+          }
+        });
+
+        // Traitement de la production
+        this.gameState.productionQueue = this.gameState.productionQueue.filter(item => {
+          const progress = (Date.now() - item.startTime) / item.duration;
+          if (progress >= 1) {
+            this.gameState.money += item.sellPrice; this.gameState.panels++;
+            this.showNotification(`${item.type} vendu pour ${this.format(item.sellPrice)}€ ! 📦`, 'success');
+            return false; // retirer de la queue
+          }
+          return true;
+        });
+
+        // Salaires des employés toutes les 60s (fix: timer fiable)
+        const now = Date.now();
+        if (now - this.lastPayrollTime >= 60000) {
+          let total = 0; this.gameState.employeeList.forEach(e => total += e.salary);
+          this.gameState.money = Math.max(0, this.gameState.money - total);
+          this.lastPayrollTime = now;
+        }
+
+        // Récolte automatique (tronçonneuse)
+        if (this.gameState.equipment.axe === 'chainsaw') {
+          this.gameState.trees.forEach((tree, index) => {
+            if (tree.planted && tree.growth >= 100) if (Math.random() < 0.1) this.harvestTree(index);
+          });
+        }
+
+        // Plantation automatique (grue)
+        if (this.gameState.equipment.logistics.includes('crane')) {
+          const emptySlot = this.gameState.trees.findIndex(tree => !tree.planted);
+          if (emptySlot !== -1 && this.gameState.money >= 50 && Math.random() < 0.05) {
+            this.gameState.money -= 50;
+            this.gameState.trees[emptySlot] = { planted: true, growth: 0, type: 'growing' };
+            this.gameState.ecoScore = Math.min(100, this.gameState.ecoScore + 2);
+            this.updateTreeDisplay(emptySlot);
+          }
+        }
+
+        // Mise à jour
+        this.updateProductionDisplay(); this.updateUI();
+      }
+    }
+
+    // Initialisation du jeu
+    const game = new ForestTycoonGame();
+  </script>
+</body>
+</html>
